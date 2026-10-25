@@ -1,0 +1,47 @@
+Table_Name,Column_Name,Data_Type,Description
+sales_transactions,Transaction_ID,String,Unique identifier for each transaction
+sales_transactions,Transaction_Date,Date,Date of transaction (YYYY-MM-DD)
+sales_transactions,Customer_ID,String,Unique identifier for customer
+sales_transactions,Customer_Segment,String,"Customer group (Retail, Corporate, VIP, Wholesale)"
+sales_transactions,Store_ID,String,Store location ID
+sales_transactions,Sales_Channel,String,"Channel where sale occurred (In-Store, Online, Mobile App)"
+sales_transactions,Product_Category,String,Product category sold
+sales_transactions,Quantity_Sold,Integer,Number of units purchased
+sales_transactions,Unit_Price_USD,Float,Price per unit before discount
+sales_transactions,Gross_Sales_USD,Float,Total sales amount before discounts and taxes
+sales_transactions,Discount_Amount_USD,Float,Discount applied to order
+sales_transactions,Net_Sales_USD,Float,Gross sales minus discounts
+sales_transactions,Tax_Amount_USD,Float,Sales tax calculated
+sales_transactions,Total_Amount_USD,Float,Final transaction amount charged to customer
+sales_transactions,Payment_Method,String,Payment method used
+sales_transactions,Sales_Rep_Name,String,Name of sales representative
+daily_drivers,Date,Date,Calendar date (YYYY-MM-DD)
+daily_drivers,Store_Foot_Traffic,Integer,Physical visitor count across physical stores
+daily_drivers,Website_Visitors,Integer,Total web/app unique daily visitors
+daily_drivers,Conversion_Rate,Float,Percentage of visitors who completed a purchase
+daily_drivers,Total_Orders_Placed,Integer,Total orders completed
+daily_drivers,Average_Order_Value_USD,Float,Average spend per order
+daily_drivers,Marketing_Ad_Spend_USD,Float,Daily ad spend across channels
+daily_drivers,Marketing_Leads_Generated,Integer,New leads acquired
+daily_drivers,Customer_CSAT_Score,Float,Average Customer Satisfaction Score (1-5 scale)
+daily_drivers,Support_Tickets_Opened,Integer,New customer support requests
+daily_drivers,Support_Tickets_Resolved,Integer,Support requests resolved on date
+daily_drivers,On_Time_Delivery_Rate,Float,Percentage of orders delivered on time
+daily_drivers,Active_Fleet_Drivers,Integer,Number of delivery drivers on shift
+daily_drivers,Fuel_Cost_Per_Liter_USD,Float,Average daily fuel price
+monthly_financials,Year_Month,String,Accounting period (YYYY-MM)
+monthly_financials,Gross_Revenue_USD,Float,Total revenue billed
+monthly_financials,Cost_of_Goods_Sold_USD,Float,Direct costs attributable to production/sales
+monthly_financials,Gross_Profit_USD,Float,Gross Revenue minus Cost of Goods Sold
+monthly_financials,Gross_Margin_Pct,Float,Gross profit percentage
+monthly_financials,Marketing_Expense_USD,Float,Total monthly marketing budget spent
+monthly_financials,Payroll_Salaries_USD,Float,Total staff compensation and benefits
+monthly_financials,Rent_Utilities_USD,Float,Facilities rent and utility costs
+monthly_financials,IT_Software_Expense_USD,Float,Software subscriptions and tech infrastructure
+monthly_financials,Total_OpEx_USD,Float,Sum of operational expenses
+monthly_financials,EBITDA_USD,Float,"Earnings before Interest, Tax, Depreciation, and Amortization"
+monthly_financials,Depreciation_Amortization_USD,Float,Asset depreciation and amortization charges
+monthly_financials,EBIT_USD,Float,Operating Income (EBITDA minus Depreciation/Amortization)
+monthly_financials,Tax_Expense_USD,Float,Corporate tax expense
+monthly_financials,Net_Income_USD,Float,Net profit after all expenses and taxes
+monthly_financials,Net_Margin_Pct,Float,Net profit percentage
