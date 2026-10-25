@@ -1,501 +1,659 @@
 
 from pathlib import Path
-import json
-import re
 
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
-# =====================================================
-# 1. APP CONFIGURATION
-# =====================================================
+
+# --------------------------------------------------
+# 1. PAGE CONFIGURATION
+# --------------------------------------------------
 
 st.set_page_config(
     page_title="DEXCR | AI Business Intelligence",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
 )
 
-st.title("DEXCR")
-st.subheader("AI Business Intelligence Assistant")
-st.write(
-    "Explore sales, financial performance, and business trends "
-    "using natural-language questions."
+st.markdown(
+    """
+    <style>
+    @import url(
+      'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap'
+    );
+
+    html, body, [class*="css"] {
+        font-family: 'DM Sans', sans-serif;
+    }
+
+    .stApp {
+        background: #f6f7fb;
+    }
+
+    [data-testid="stSidebar"] {
+        background: #111827;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #f9fafb;
+    }
+
+    .hero {
+        background: linear-gradient(120deg, #111827, #312e81);
+        color: white;
+        padding: 30px;
+        border-radius: 18px;
+        margin-bottom: 22px;
+    }
+
+    .hero h1 {
+        color: white;
+        margin-bottom: 8px;
+    }
+
+    .metric-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 20px;
+        min-height: 115px;
+    }
+
+    .metric-label {
+        color: #6b7280;
+        font-size: 13px;
+    }
+
+    .metric-value {
+        color: #111827;
+        font-size: 27px;
+        font-weight: 700;
+        margin-top: 8px;
+        overflow-wrap: anywhere;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
+
+
+# --------------------------------------------------
+# 2. DATA LOADING
+# --------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
 
 
-# =====================================================
-# 2. LOAD THE DATASETS
-# =====================================================
+def read_uploaded_file(uploaded_file):
+    """Read CSV or Excel data into a pandas DataFrame."""
+    filename = uploaded_file.name.lower()
 
-@st.cache_data
-def load_data():
-    filenames = [
-        "sales_transactions.csv",
-        "daily_drivers.csv",
-        "monthly_financials.csv",
-        "data_dictionary.csv"
+    if filename.endswith(".csv"):
+        try:
+            return pd.read_csv(uploaded_file)
+        except UnicodeDecodeError:
+            uploaded_file.seek(0)
+            return pd.read_csv(uploaded_file, encoding="latin-1")
+
+    if filename.endswith(".xlsx"):
+        return pd.read_excel(uploaded_file, engine="openpyxl")
+
+    raise ValueError("Please upload a CSV or XLSX file.")
+
+
+def load_sample_data():
+    """Load the original sales dataset if it exists."""
+    path = BASE_DIR / "sales_transactions.csv"
+
+    if path.exists():
+        return pd.read_csv(path)
+
+    return pd.DataFrame()
+
+
+# --------------------------------------------------
+# 3. AUTOMATIC DATA PROFILING
+# --------------------------------------------------
+
+def profile_data(df):
+    numeric_columns = df.select_dtypes(
+        include="number"
+    ).columns.tolist()
+
+    date_candidates = []
+
+    for col in df.columns:
+        name = str(col).lower()
+
+        if any(word in name for word in
+               ["date", "datetime", "timestamp"]):
+            parsed = pd.to_datetime(df[col], errors="coerce")
+
+            if parsed.notna().mean() >= 0.5:
+                date_candidates.append(col)
+
+    category_columns = []
+
+    for col in df.select_dtypes(
+        include=["object", "category", "bool"]
+    ).columns:
+        unique_count = df[col].nunique(dropna=True)
+        if 2 <= unique_count <= min(50, max(2, len(df) // 2)):
+            category_columns.append(col)
+
+    return numeric_columns, date_candidates, category_columns
+
+
+def guess_measure(numeric_columns):
+    """Guess a useful numeric column without assuming all data is sales."""
+    priorities = [
+        "net_sales", "revenue", "sales", "amount",
+        "profit", "income", "quantity", "units",
+        "cost", "price", "value",
     ]
 
-    missing = [
-        name for name in filenames
-        if not (BASE_DIR / name).exists()
-    ]
+    for word in priorities:
+        for col in numeric_columns:
+            if word in str(col).lower():
+                return col
 
-    if missing:
-        raise FileNotFoundError(
-            "Missing CSV files: " + ", ".join(missing)
+    return numeric_columns[0] if numeric_columns else None
+
+
+def format_number(value):
+    if pd.isna(value):
+        return "N/A"
+
+    if abs(value) >= 1_000_000:
+        return f"{value:,.2f}"
+
+    return f"{value:,.2f}"
+
+
+# --------------------------------------------------
+# 4. SIDEBAR AND NAVIGATION
+# --------------------------------------------------
+
+with st.sidebar:
+    st.markdown("## ◈ DEXCR")
+    st.caption("Your data. Any question.")
+    st.divider()
+
+    page = st.radio(
+        "WORKSPACE",
+        [
+            "Overview",
+            "My Data",
+            "Data Explorer",
+            "AI Analyst",
+        ],
+    )
+
+    st.divider()
+    st.caption("Universal business intelligence")
+
+
+# --------------------------------------------------
+# 5. DATASET SELECTION
+# --------------------------------------------------
+
+if "uploaded_df" not in st.session_state:
+    st.session_state.uploaded_df = None
+
+if "uploaded_name" not in st.session_state:
+    st.session_state.uploaded_name = None
+
+if "sample_mode" not in st.session_state:
+    st.session_state.sample_mode = True
+
+with st.sidebar:
+    st.markdown("### Active dataset")
+
+    data_choice = st.radio(
+        "Choose data",
+        ["My uploaded data", "Sample sales data"],
+        horizontal=False,
+    )
+
+if data_choice == "My uploaded data":
+    df = st.session_state.uploaded_df
+    dataset_name = st.session_state.uploaded_name or "Uploaded dataset"
+else:
+    df = load_sample_data()
+    dataset_name = "Sample sales transactions"
+
+has_data = df is not None and not df.empty
+
+
+# --------------------------------------------------
+# 6. OVERVIEW
+# --------------------------------------------------
+
+if page == "Overview":
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>Business Intelligence, without the busywork.</h1>
+            <p>
+            Upload a dataset. Discover what it contains.
+            Explore patterns and turn raw data into decisions.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(
+            '<div class="metric-card">'
+            '<div class="metric-label">Platform</div>'
+            '<div class="metric-value">DEXCR</div>'
+            '</div>',
+            unsafe_allow_html=True,
         )
 
-    sales = pd.read_csv(BASE_DIR / filenames[0])
-    daily = pd.read_csv(BASE_DIR / filenames[1])
-    financials = pd.read_csv(BASE_DIR / filenames[2])
-    dictionary = pd.read_csv(BASE_DIR / filenames[3])
+    with col2:
+        st.markdown(
+            '<div class="metric-card">'
+            '<div class="metric-label">Supported formats</div>'
+            '<div class="metric-value">CSV · XLSX</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
-    sales["Transaction_Date"] = pd.to_datetime(
-        sales["Transaction_Date"], errors="coerce"
+    with col3:
+        st.markdown(
+            '<div class="metric-card">'
+            '<div class="metric-label">Analysis engine</div>'
+            '<div class="metric-value">Dynamic</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.write("")
+    st.subheader("Start analyzing your data")
+
+    st.write(
+        "DEXCR is designed for sales, finance, operations, "
+        "marketing, customer, survey, and other tabular datasets."
     )
 
-    daily["Date"] = pd.to_datetime(
-        daily["Date"], errors="coerce"
-    )
-
-    financials["Year_Month"] = pd.to_datetime(
-        financials["Year_Month"].astype(str),
-        errors="coerce"
-    ).dt.to_period("M")
-
-    return sales, daily, financials, dictionary
-
-
-try:
-    sales, daily, financials, dictionary = load_data()
-except Exception as error:
-    st.error("The datasets could not be loaded.")
-    st.exception(error)
     st.info(
-        "Upload all four CSV files to the same GitHub repository "
-        "folder as app.py."
-    )
-    st.stop()
-
-
-# =====================================================
-# 3. BUSINESS ANALYSIS FUNCTIONS
-# =====================================================
-
-def numeric(series):
-    return pd.to_numeric(series, errors="coerce").fillna(0)
-
-
-def business_kpis():
-    columns = [
-        "Gross_Revenue_USD",
-        "Cost_of_Goods_Sold_USD",
-        "Gross_Profit_USD",
-        "Total_OpEx_USD",
-        "EBITDA_USD",
-        "EBIT_USD",
-        "Net_Income_USD"
-    ]
-
-    result = {}
-
-    for column in columns:
-        if column in financials.columns:
-            result[column] = round(
-                float(numeric(financials[column]).sum()), 2
-            )
-
-    revenue = result.get("Gross_Revenue_USD", 0)
-    gross_profit = result.get("Gross_Profit_USD", 0)
-    net_income = result.get("Net_Income_USD", 0)
-
-    result["Gross_Margin_Pct"] = (
-        round(gross_profit / revenue * 100, 2)
-        if revenue else None
+        "Open **My Data** in the sidebar to upload a dataset. "
+        "The current version automatically profiles the columns "
+        "and creates an exploratory analysis."
     )
 
-    result["Net_Margin_Pct"] = (
-        round(net_income / revenue * 100, 2)
-        if revenue else None
-    )
-
-    return result
-
-
-def sales_analysis(group_by="Product_Category"):
-    allowed = [
-        "Product_Category",
-        "Sales_Channel",
-        "Customer_Segment",
-        "Store_ID",
-        "Payment_Method",
-        "Sales_Rep_Name"
-    ]
-
-    if group_by not in allowed:
-        raise ValueError("Unsupported sales grouping.")
-
-    result = (
-        sales.groupby(group_by, dropna=False)
-        .agg(
-            Transactions=("Transaction_ID", "count"),
-            Units_Sold=("Quantity_Sold", "sum"),
-            Net_Sales_USD=("Net_Sales_USD", "sum")
-        )
-        .reset_index()
-        .sort_values("Net_Sales_USD", ascending=False)
-    )
-
-    result["Net_Sales_USD"] = result["Net_Sales_USD"].round(2)
-    return result
-
-
-def revenue_trend():
-    result = (
-        financials.groupby("Year_Month", as_index=False)
-        .agg(
-            Gross_Revenue_USD=("Gross_Revenue_USD", "sum"),
-            EBITDA_USD=("EBITDA_USD", "sum"),
-            Net_Income_USD=("Net_Income_USD", "sum")
-        )
-        .sort_values("Year_Month")
-    )
-
-    result["Year_Month"] = result["Year_Month"].astype(str)
-
-    result["Revenue_Change_Pct"] = (
-        result["Gross_Revenue_USD"]
-        .pct_change()
-        .mul(100)
-        .round(2)
-    )
-
-    return result
-
-
-# =====================================================
-# 4. DISPLAY THE FINANCIAL DASHBOARD
-# =====================================================
-
-st.header("Financial Overview")
-
-kpis = business_kpis()
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric(
-    "Gross Revenue",
-    f"${kpis.get('Gross_Revenue_USD', 0):,.0f}"
-)
-
-c2.metric(
-    "Gross Profit",
-    f"${kpis.get('Gross_Profit_USD', 0):,.0f}"
-)
-
-c3.metric(
-    "EBITDA",
-    f"${kpis.get('EBITDA_USD', 0):,.0f}"
-)
-
-c4.metric(
-    "Net Income",
-    f"${kpis.get('Net_Income_USD', 0):,.0f}"
-)
-
-with st.expander("View all financial KPIs"):
-    st.json(kpis)
-
-
-# =====================================================
-# 5. EXPLORE SALES
-# =====================================================
-
-st.header("Sales Analysis")
-
-dimension = st.selectbox(
-    "Analyze sales by",
-    [
-        "Product_Category",
-        "Sales_Channel",
-        "Customer_Segment",
-        "Store_ID",
-        "Payment_Method",
-        "Sales_Rep_Name"
-    ]
-)
-
-sales_results = sales_analysis(dimension)
-
-st.dataframe(sales_results, use_container_width=True)
-
-st.bar_chart(
-    sales_results.set_index(dimension)["Net_Sales_USD"]
-)
-
-
-# =====================================================
-# 6. MONTHLY FINANCIAL TRENDS
-# =====================================================
-
-st.header("Monthly Financial Trends")
-
-trend = revenue_trend()
-
-st.line_chart(
-    trend.set_index("Year_Month")[
-        ["Gross_Revenue_USD", "EBITDA_USD", "Net_Income_USD"]
-    ]
-)
-
-st.dataframe(trend, use_container_width=True)
-
-
-# =====================================================
-# 7. DATASET EXPLORER
-# =====================================================
-
-st.header("Dataset Explorer")
-
-dataset_name = st.selectbox(
-    "Choose a dataset",
-    [
-        "Sales Transactions",
-        "Daily Drivers",
-        "Monthly Financials",
-        "Data Dictionary"
-    ]
-)
-
-datasets = {
-    "Sales Transactions": sales,
-    "Daily Drivers": daily,
-    "Monthly Financials": financials,
-    "Data Dictionary": dictionary
-}
-
-selected_data = datasets[dataset_name]
-
-st.write(f"**Rows:** {len(selected_data):,}")
-st.write("Preview of the dataset:")
-st.dataframe(selected_data.head(100), use_container_width=True)
-
-
-# =====================================================
-# 8. AI BUSINESS ASSISTANT
-# =====================================================
-
-st.header("Ask DEXCR")
-
-st.caption(
-    "Example questions: Which channel has the highest sales? "
-    "What are our financial KPIs? How has revenue changed?"
-)
-
-@st.cache_resource(show_spinner="Loading the AI model...")
-def load_llm():
-    import torch
-    from transformers import AutoTokenizer, AutoModelForCausalLM
-
-    model_name = "Qwen/Qwen2.5-0.5B-Instruct"
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype="auto",
-        device_map="auto"
-    )
-
-    model.eval()
-    return tokenizer, model
-
-
-def generate_text(messages, max_new_tokens=220):
-    tokenizer, model = load_llm()
-
-    prompt = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True
-    )
-
-    inputs = tokenizer(
-        prompt,
-        return_tensors="pt"
-    ).to(model.device)
-
-    import torch
-
-    with torch.no_grad():
-        output = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-            pad_token_id=tokenizer.eos_token_id
+    if has_data:
+        st.success(
+            f"Active dataset: {dataset_name} "
+            f"({len(df):,} rows, {len(df.columns):,} columns)"
         )
 
-    new_tokens = output[0][inputs["input_ids"].shape[1]:]
 
-    return tokenizer.decode(
-        new_tokens,
-        skip_special_tokens=True
-    ).strip()
+# --------------------------------------------------
+# 7. UPLOAD AND PROFILE DATA
+# --------------------------------------------------
 
+elif page == "My Data":
+    st.title("My Data")
+    st.write(
+        "Upload a dataset from your computer. "
+        "DEXCR will inspect its structure and adapt the analysis "
+        "to the columns available."
+    )
 
-def select_tool(question):
-    tools_description = """
-    business_kpis: overall financial KPIs. Arguments {}
-    sales_analysis: compare sales. Allowed group_by:
-    Product_Category, Sales_Channel, Customer_Segment, Store_ID,
-    Payment_Method, Sales_Rep_Name.
-    Example {"group_by":"Sales_Channel"}
-    revenue_trend: monthly revenue and profitability trends. Arguments {}
-    """
+    uploaded_file = st.file_uploader(
+        "Choose a dataset",
+        type=["csv", "xlsx"],
+        help="Upload a CSV or Excel XLSX file.",
+    )
 
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "Choose one tool for the user's business question. "
-                "Return only JSON with keys tool_name and arguments. "
-                "Do not answer the question. If unsupported, return "
-                '{"tool_name":"unsupported","arguments":{}}.'
-            )
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Tools:\n{tools_description}\n"
-                f"Question: {question}\n"
-                'Return JSON, for example: '
-                '{"tool_name":"business_kpis","arguments":{}}'
-            )
-        }
-    ]
+    if uploaded_file is not None:
+        try:
+            new_df = read_uploaded_file(uploaded_file)
 
-    raw = generate_text(messages, 120)
-    match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
+            if new_df.empty:
+                st.error("The uploaded file contains no data.")
+            else:
+                st.session_state.uploaded_df = new_df
+                st.session_state.uploaded_name = uploaded_file.name
+                st.session_state.sample_mode = False
 
-    if not match:
-        return {"tool_name": "unsupported", "arguments": {}}
+                st.success(
+                    f"Loaded {uploaded_file.name}: "
+                    f"{len(new_df):,} rows and "
+                    f"{len(new_df.columns):,} columns."
+                )
+        except Exception as exc:
+            st.error(f"Could not read this file: {exc}")
 
-    try:
-        return json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return {"tool_name": "unsupported", "arguments": {}}
+    df = st.session_state.uploaded_df
+    dataset_name = st.session_state.uploaded_name
 
+    if df is not None and not df.empty:
+        st.divider()
+        st.subheader("Dataset profile")
 
-def execute_tool(decision):
-    tool_name = decision.get("tool_name")
-    arguments = decision.get("arguments", {})
+        numeric_cols, date_cols, category_cols = profile_data(df)
 
-    if tool_name == "business_kpis":
-        return business_kpis()
+        a, b, c, d = st.columns(4)
+        a.metric("Rows", f"{len(df):,}")
+        b.metric("Columns", f"{len(df.columns):,}")
+        c.metric("Numeric columns", len(numeric_cols))
+        d.metric("Date candidates", len(date_cols))
 
-    if tool_name == "revenue_trend":
-        return revenue_trend().to_dict(orient="records")
+        st.markdown("#### Column types")
 
-    if tool_name == "sales_analysis":
-        group_by = arguments.get(
-            "group_by", "Product_Category"
+        schema = pd.DataFrame({
+            "Column": df.columns.astype(str),
+            "Detected type": [
+                str(df[col].dtype) for col in df.columns
+            ],
+            "Unique values": [
+                df[col].nunique(dropna=True) for col in df.columns
+            ],
+            "Missing values": [
+                int(df[col].isna().sum()) for col in df.columns
+            ],
+            "Missing %": [
+                round(df[col].isna().mean() * 100, 2)
+                for col in df.columns
+            ],
+        })
+
+        st.dataframe(schema, use_container_width=True)
+
+        st.markdown("#### Data preview")
+        st.dataframe(df.head(100), use_container_width=True)
+
+        st.markdown("#### Data quality checks")
+
+        duplicate_rows = int(df.duplicated().sum())
+        missing_cells = int(df.isna().sum().sum())
+
+        q1, q2, q3 = st.columns(3)
+        q1.metric("Duplicate rows", f"{duplicate_rows:,}")
+        q2.metric("Missing cells", f"{missing_cells:,}")
+        q3.metric(
+            "Complete cells",
+            f"{df.size - missing_cells:,}"
         )
 
-        allowed = [
-            "Product_Category",
-            "Sales_Channel",
-            "Customer_Segment",
-            "Store_ID",
-            "Payment_Method",
-            "Sales_Rep_Name"
+        st.download_button(
+            "Download uploaded data as CSV",
+            data=df.to_csv(index=False).encode("utf-8"),
+            file_name="dexcr_export.csv",
+            mime="text/csv",
+        )
+
+        st.caption(
+            "Uploaded data is kept in the active app session; "
+            "this code does not save it into your GitHub repository."
+        )
+    else:
+        st.info(
+            "No uploaded dataset yet. Upload a CSV or XLSX file above."
+        )
+
+
+# --------------------------------------------------
+# 8. DYNAMIC DATA EXPLORER
+# --------------------------------------------------
+
+elif page == "Data Explorer":
+    st.title("Data Explorer")
+
+    if not has_data:
+        st.warning(
+            "No active dataset. Upload data under My Data, "
+            "or select Sample sales data in the sidebar."
+        )
+    else:
+        numeric_cols, date_cols, category_cols = profile_data(df)
+
+        st.caption(
+            f"Dataset: {dataset_name} · "
+            f"{len(df):,} rows · {len(df.columns)} columns"
+        )
+
+        search_text = st.text_input(
+            "Search column names",
+            placeholder="Try revenue, date, customer..."
+        )
+
+        shown_cols = [
+            col for col in df.columns
+            if search_text.lower() in str(col).lower()
         ]
 
-        if group_by not in allowed:
-            raise ValueError("Invalid sales grouping.")
+        st.dataframe(
+            df[shown_cols].head(500),
+            use_container_width=True,
+        )
 
-        return sales_analysis(group_by).to_dict(orient="records")
+        st.divider()
+        st.subheader("Explore a numeric measure")
 
-    raise ValueError(
-        "Unsupported question. Try asking about financial KPIs, "
-        "sales comparisons, or revenue trends."
+        if numeric_cols:
+            measure = st.selectbox(
+                "Choose a numeric column",
+                numeric_cols,
+                index=numeric_cols.index(guess_measure(numeric_cols))
+                if guess_measure(numeric_cols) in numeric_cols else 0,
+            )
+
+            values = pd.to_numeric(
+                df[measure], errors="coerce"
+            ).dropna()
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total", format_number(values.sum()))
+            m2.metric("Average", format_number(values.mean()))
+            m3.metric("Median", format_number(values.median()))
+            m4.metric("Distinct values", f"{values.nunique():,}")
+
+            st.plotly_chart(
+                px.histogram(
+                    df,
+                    x=measure,
+                    title=f"Distribution of {measure}",
+                    template="plotly_white",
+                ),
+                use_container_width=True,
+            )
+
+            if category_cols:
+                group_col = st.selectbox(
+                    "Compare by category",
+                    category_cols,
+                )
+
+                grouped = (
+                    df.groupby(group_col, dropna=False)[measure]
+                    .sum()
+                    .reset_index()
+                    .sort_values(measure, ascending=False)
+                    .head(20)
+                )
+
+                st.plotly_chart(
+                    px.bar(
+                        grouped,
+                        x=group_col,
+                        y=measure,
+                        title=f"{measure} by {group_col}",
+                        template="plotly_white",
+                    ),
+                    use_container_width=True,
+                )
+                st.dataframe(grouped, use_container_width=True)
+        else:
+            st.info(
+                "No numeric columns were detected. You can still "
+                "inspect the data and review its column types."
+            )
+
+        if date_cols and numeric_cols:
+            st.divider()
+            st.subheader("Trend analysis")
+
+            date_col = st.selectbox("Date column", date_cols)
+            trend_measure = st.selectbox(
+                "Measure to track",
+                numeric_cols,
+                key="trend_measure",
+            )
+
+            trend_df = df[[date_col, trend_measure]].copy()
+            trend_df[date_col] = pd.to_datetime(
+                trend_df[date_col], errors="coerce"
+            )
+            trend_df[trend_measure] = pd.to_numeric(
+                trend_df[trend_measure], errors="coerce"
+            )
+            trend_df = trend_df.dropna()
+
+            if not trend_df.empty:
+                trend_df["Period"] = (
+                    trend_df[date_col].dt.to_period("M").astype(str)
+                )
+                monthly = (
+                    trend_df.groupby("Period")[trend_measure]
+                    .sum()
+                    .reset_index()
+                )
+
+                st.plotly_chart(
+                    px.line(
+                        monthly,
+                        x="Period",
+                        y=trend_measure,
+                        markers=True,
+                        title=f"{trend_measure} over time",
+                        template="plotly_white",
+                    ),
+                    use_container_width=True,
+                )
+
+
+# --------------------------------------------------
+# 9. INITIAL AI ANALYST
+# --------------------------------------------------
+
+elif page == "AI Analyst":
+    st.title("AI Analyst")
+    st.write(
+        "Ask questions about the active dataset. "
+        "This initial version calculates answers with Python; "
+        "a language model will be connected in a later step."
     )
 
+    if not has_data:
+        st.warning(
+            "Upload a dataset under My Data or select sample data "
+            "in the sidebar before asking questions."
+        )
+    else:
+        numeric_cols, date_cols, category_cols = profile_data(df)
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+        if not numeric_cols:
+            st.info(
+                "This dataset has no detected numeric columns. "
+                "Try a question about the number of records or "
+                "the available columns."
+            )
 
-for message in st.session_state.chat_history:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        question = st.text_input(
+            "Ask a question",
+            placeholder="e.g. What is the average order value?"
+        )
 
-question = st.chat_input("Ask a question about your business data...")
+        if st.button("Analyze question", type="primary"):
+            q = question.lower().strip()
 
-if question:
-    st.session_state.chat_history.append(
-        {"role": "user", "content": question}
-    )
+            if not q:
+                st.warning("Please enter a question.")
+            elif any(word in q for word in [
+                "how many rows", "number of rows",
+                "record count", "how many records",
+            ]):
+                st.metric("Number of records", f"{len(df):,}")
+            elif "column" in q and any(
+                word in q for word in ["which", "what", "list"]
+            ):
+                st.write("Available columns:")
+                st.write(list(df.columns))
+            elif numeric_cols:
+                measure = guess_measure(numeric_cols)
 
-    with st.chat_message("user"):
-        st.markdown(question)
+                for col in numeric_cols:
+                    if str(col).lower() in q:
+                        measure = col
+                        break
 
-    with st.chat_message("assistant"):
-        try:
-            with st.spinner("Analyzing your question..."):
-                decision = select_tool(question)
+                values = pd.to_numeric(
+                    df[measure], errors="coerce"
+                ).dropna()
 
-                if decision.get("tool_name") == "unsupported":
-                    answer = (
-                        "I couldn't identify a suitable analysis tool. "
-                        "Try asking about financial KPIs, sales by channel "
-                        "or category, or monthly revenue trends."
+                if any(word in q for word in [
+                    "average", "mean", "typical"
+                ]):
+                    st.success(
+                        f"Average {measure}: "
+                        f"{format_number(values.mean())}"
+                    )
+                elif any(word in q for word in [
+                    "median", "middle"
+                ]):
+                    st.success(
+                        f"Median {measure}: "
+                        f"{format_number(values.median())}"
+                    )
+                elif any(word in q for word in [
+                    "highest", "maximum", "max", "largest"
+                ]):
+                    st.success(
+                        f"Highest {measure}: "
+                        f"{format_number(values.max())}"
+                    )
+                elif any(word in q for word in [
+                    "lowest", "minimum", "min", "smallest"
+                ]):
+                    st.success(
+                        f"Lowest {measure}: "
+                        f"{format_number(values.min())}"
+                    )
+                elif any(word in q for word in [
+                    "count", "how many"
+                ]):
+                    st.success(
+                        f"Non-empty values in {measure}: "
+                        f"{values.count():,}"
                     )
                 else:
-                    actual_results = execute_tool(decision)
-
-                    messages = [
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are a business intelligence analyst. "
-                                "Explain the supplied results clearly. "
-                                "Use only the provided data for numerical "
-                                "claims. Do not invent figures or causes."
-                            )
-                        },
-                        {
-                            "role": "user",
-                            "content": (
-                                f"Question: {question}\n"
-                                f"Results from Python:\n"
-                                f"{json.dumps(actual_results, default=str)}\n"
-                                "Explain the findings briefly."
-                            )
-                        }
-                    ]
-
-                    answer = generate_text(messages, 250)
-
-                    with st.expander("View underlying Python results"):
-                        st.json(actual_results)
-
-                    st.caption(
-                        f"Analysis tool selected: {decision['tool_name']}"
+                    st.success(
+                        f"Total {measure}: "
+                        f"{format_number(values.sum())}"
                     )
 
-            st.markdown(answer)
+                st.caption(
+                    f"Calculated from column '{measure}'. "
+                    "Check the selected measure before relying on "
+                    "the result for a business decision."
+                )
+            else:
+                st.write("Available columns:", list(df.columns))
 
-            st.session_state.chat_history.append(
-                {"role": "assistant", "content": answer}
-            )
-
-        except Exception as error:
-            st.error(
-                "The assistant encountered an error. "
-                "Check the Streamlit deployment logs."
-            )
-            st.exception(error)
+        st.divider()
+        st.markdown("#### Questions to try")
+        st.markdown(
+            "- How many rows are in this dataset?\n"
+            "- What is the average of a numeric column?\n"
+            "- What is the highest value?\n"
+            "- Which columns are available?"
+        )
