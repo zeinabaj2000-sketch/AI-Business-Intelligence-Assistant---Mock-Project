@@ -8,7 +8,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-# Optional LangChain integration
+# Optional LangChain integration. The app still works without an API key.
 try:
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import SystemMessage, HumanMessage
@@ -18,250 +18,26 @@ except ImportError:
 
 
 # ============================================================
-# 1. PAGE SETUP AND DEXCR DESIGN
+# 1. PAGE SETUP
 # ============================================================
 st.set_page_config(
-    page_title="DEXCR | Make your data make sense",
+    page_title="DEXCR | AI Data Analyst",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded",
 )
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
-
-:root {
-    --ink: #182238;
-    --muted: #737d91;
-    --purple: #6658df;
-    --purple-dark: #4e42bf;
-    --line: #e7eaf2;
-    --surface: #ffffff;
-}
-
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-}
-
-.stApp {
-    background: #f7f8fc;
-    color: var(--ink);
-}
-
-.block-container {
-    max-width: 1500px;
-    padding-top: 2rem;
-    padding-bottom: 3rem;
-}
-
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background: #17192f;
-    border-right: 1px solid #292b43;
-}
-
-[data-testid="stSidebar"] * {
-    color: #f7f7ff;
-}
-
-[data-testid="stSidebar"] .stCaption {
-    color: #b9bdd5;
-}
-
-[data-testid="stSidebar"] hr {
-    border-color: #34364f;
-}
-
-[data-testid="stSidebar"] [data-testid="stFileUploader"] {
-    background: #20223a;
-    padding: 12px;
-    border: 1px solid #383a56;
-    border-radius: 12px;
-}
-
-/* Brand */
-.brand-mark {
-    font-size: 1.85rem;
-    font-weight: 800;
-    letter-spacing: -0.065em;
-    color: white;
-    line-height: 1.1;
-}
-
-.brand-caption {
-    color: #b9bdd5;
-    font-size: 0.82rem;
-    margin-top: 7px;
-    line-height: 1.5;
-}
-
-/* Hero */
-.hero {
-    background: linear-gradient(120deg, #17192f 0%, #302c68 58%, #6658df 100%);
-    color: white;
-    padding: 42px 42px;
-    border-radius: 24px;
-    margin: 0 0 26px 0;
-    box-shadow: 0 14px 35px rgba(40, 36, 100, 0.12);
-    position: relative;
-    overflow: hidden;
-}
-
-.hero:after {
-    content: "";
-    position: absolute;
-    width: 250px;
-    height: 250px;
-    right: -75px;
-    top: -95px;
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 50%;
-    box-shadow: 0 0 0 30px rgba(255,255,255,0.035),
-                0 0 0 65px rgba(255,255,255,0.025);
-    pointer-events: none;
-}
-
-.hero .eyebrow {
-    color: #d4d0ff;
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-}
-
-.hero h1 {
-    color: white !important;
-    font-size: clamp(2.3rem, 4vw, 3.4rem);
-    font-weight: 800;
-    line-height: 1.08;
-    letter-spacing: -0.055em;
-    margin: 0 0 10px 0;
-}
-
-.hero .tagline {
-    color: white;
-    font-size: clamp(1.15rem, 2vw, 1.45rem);
-    font-weight: 600;
-    margin-bottom: 12px;
-}
-
-.hero p {
-    color: #e5e6ff;
-    font-size: 1rem;
-    line-height: 1.75;
-    max-width: 720px;
-    margin: 0;
-}
-
-/* Metric cards */
-div[data-testid="stMetric"] {
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 19px 21px;
-    box-shadow: 0 4px 14px rgba(24, 34, 56, 0.025);
-}
-
-div[data-testid="stMetricLabel"] {
-    color: var(--muted);
-    font-size: 0.86rem;
-    font-weight: 600;
-}
-
-div[data-testid="stMetricValue"] {
-    color: var(--ink);
-    font-weight: 800;
-}
-
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    border-bottom: 1px solid var(--line);
-}
-
-.stTabs [data-baseweb="tab"] {
-    height: 48px;
-    background: transparent;
-    border-radius: 10px 10px 0 0;
-    padding: 0 18px;
-    font-weight: 600;
-}
-
-.stTabs [aria-selected="true"] {
-    color: var(--purple);
-}
-
-/* Buttons */
-.stButton > button,
-.stDownloadButton > button {
-    border-radius: 10px;
-    min-height: 42px;
-    font-weight: 600;
-    transition: all 0.15s ease;
-}
-
-.stButton > button[kind="primary"] {
-    background: var(--purple);
-    border: 1px solid var(--purple);
-}
-
-.stButton > button[kind="primary"]:hover {
-    background: var(--purple-dark);
-    border-color: var(--purple-dark);
-}
-
-/* Inputs and tables */
-.stTextArea textarea,
-.stTextInput input,
-.stSelectbox div[data-baseweb="select"] > div {
-    border-radius: 10px;
-}
-
-div[data-testid="stDataFrame"] {
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-div[data-testid="stAlert"] {
-    border-radius: 12px;
-}
-
-div[data-testid="stExpander"] {
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-}
-
-.section-description {
-    color: var(--muted);
-    margin-top: -8px;
-    margin-bottom: 20px;
-}
-
-.welcome-card {
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 25px;
-}
-
-footer {
-    visibility: hidden;
-}
-
-@media (max-width: 768px) {
-    .block-container {
-        padding-top: 1rem;
-    }
-
-    .hero {
-        padding: 28px 22px;
-        border-radius: 17px;
-    }
-}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
+.stApp { background: #f6f7fb; }
+[data-testid="stSidebar"] { background: #111827; }
+[data-testid="stSidebar"] * { color: #f9fafb; }
+.hero { background: linear-gradient(120deg,#111827,#312e81); color:white;
+        padding:28px; border-radius:16px; margin-bottom:20px; }
+.hero h1 { color:white; margin:0 0 8px 0; }
+div[data-testid="stMetric"] { background:white; padding:12px;
+    border:1px solid #e5e7eb; border-radius:12px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -273,10 +49,8 @@ BASE_DIR = Path(__file__).resolve().parent
 # ============================================================
 def setting(name, default=None):
     value = os.getenv(name)
-
     if value:
         return value
-
     try:
         return st.secrets.get(name, default)
     except Exception:
@@ -302,18 +76,6 @@ def read_file(file):
         return pd.read_excel(file)
 
     raise ValueError("Please upload a CSV, XLSX, or XLS file.")
-
-
-def load_sample_data():
-    """Load the optional sample CSV stored beside app.py."""
-    sample_path = BASE_DIR / "sales_transactions.csv"
-
-    if not sample_path.exists():
-        raise FileNotFoundError(
-            "sales_transactions.csv was not found in the app repository."
-        )
-
-    return pd.read_csv(sample_path, low_memory=False)
 
 
 def numeric_series(series):
@@ -342,42 +104,41 @@ def norm(value):
 
 ALIASES = {
     "revenue": [
-        "revenue", "sales", "sales amount", "sales value",
-        "net sales", "total revenue", "turnover", "amount",
-        "total amount", "line total"
+        "revenue", "sales", "sales amount", "sales value", "net sales",
+        "total revenue", "turnover", "amount", "total amount", "line total",
     ],
     "profit": [
-        "profit", "net profit", "gross profit",
-        "profit amount", "margin amount"
+        "profit", "net profit", "gross profit", "profit amount",
+        "margin amount",
     ],
     "cost": [
-        "cost", "total cost", "expense", "expenses",
-        "cogs", "cost of goods sold"
+        "cost", "total cost", "expense", "expenses", "cogs",
+        "cost of goods sold",
     ],
     "quantity": [
-        "quantity", "qty", "units", "units sold",
-        "quantity sold", "volume"
+        "quantity", "qty", "units", "units sold", "quantity sold", "volume",
     ],
     "date": [
-        "date", "order date", "transaction date",
-        "invoice date", "created at", "timestamp", "period", "month"
+        "date", "order date", "transaction date", "invoice date",
+        "created at", "timestamp", "period", "month",
     ],
     "product": [
-        "product", "product name", "item", "item name", "sku", "service"
+        "product", "product name", "item", "item name", "sku", "service",
     ],
     "customer": [
-        "customer", "customer name", "customer id", "client", "buyer"
+        "customer", "customer name", "customer id", "client", "buyer",
     ],
     "region": [
-        "region", "area", "territory", "country",
-        "city", "location", "branch"
+        "region", "area", "territory", "country", "city", "location",
+        "branch",
     ],
     "category": [
-        "category", "product category", "department", "segment", "product type"
+        "category", "product category", "department", "segment",
+        "product type",
     ],
     "order": [
-        "order id", "order number", "transaction id",
-        "invoice id", "receipt id"
+        "order id", "order number", "transaction id", "invoice id",
+        "receipt id",
     ],
 }
 
@@ -438,22 +199,30 @@ def infer_roles(df):
         for col in df.columns:
             name = norm(col)
 
-            score = max([
-                100 if name == norm(alias)
-                else 80 if norm(alias) in name
-                else 0
-                for alias in aliases
-            ] or [0])
+            score = max(
+                [
+                    100 if name == norm(a)
+                    else 80 if norm(a) in name
+                    else 0
+                    for a in aliases
+                ] or [0]
+            )
 
-            if role in {"revenue", "profit", "cost", "quantity"} and col not in numeric:
+            if (
+                role in {"revenue", "profit", "cost", "quantity"}
+                and col not in numeric
+            ):
                 score = 0
 
             if role == "date" and col not in dates:
                 score = 0
 
-            if role not in {
-                "revenue", "profit", "cost", "quantity", "date"
-            } and col in numeric:
+            if (
+                role not in {
+                    "revenue", "profit", "cost", "quantity", "date"
+                }
+                and col in numeric
+            ):
                 score = min(score, 40)
 
             if role == "revenue" and any(
@@ -482,10 +251,13 @@ def automatic_review(df):
     duplicates = int(df.duplicated().sum())
 
     insights = [
-        f"Dataset contains **{len(df):,} rows** and **{len(df.columns):,} columns**.",
-        f"Missing cells: **{missing:,}** ({missing / max(df.size, 1) * 100:.2f}%).",
+        f"Dataset contains **{len(df):,} rows** and "
+        f"**{len(df.columns):,} columns**.",
+        f"Missing cells: **{missing:,}** "
+        f"({missing / max(df.size, 1) * 100:.2f}%).",
         f"Fully duplicated rows: **{duplicates:,}**.",
-        f"Detected {len(numeric)} numeric, {len(categorical)} categorical, and {len(dates)} date-like columns.",
+        f"Detected {len(numeric)} numeric, {len(categorical)} categorical, "
+        f"and {len(dates)} date-like columns.",
     ]
 
     if roles:
@@ -501,7 +273,8 @@ def automatic_review(df):
         if len(s):
             insights.append(
                 f"`{col}` — total **{s.sum():,.2f}**, "
-                f"average **{s.mean():,.2f}**, median **{s.median():,.2f}**."
+                f"average **{s.mean():,.2f}**, "
+                f"median **{s.median():,.2f}**."
             )
 
     if roles.get("date"):
@@ -512,7 +285,8 @@ def automatic_review(df):
 
         if len(ds):
             insights.append(
-                f"Date coverage: **{ds.min().date()}** to **{ds.max().date()}**."
+                f"Date coverage: **{ds.min().date()}** "
+                f"to **{ds.max().date()}**."
             )
 
     return {
@@ -536,8 +310,7 @@ def schema_for_llm(df):
             "missing": int(s.isna().sum()),
             "unique": int(s.nunique(dropna=True)),
             "examples": [
-                str(v)[:80]
-                for v in s.dropna().head(3).tolist()
+                str(v)[:80] for v in s.dropna().head(3).tolist()
             ],
         })
 
@@ -545,390 +318,13 @@ def schema_for_llm(df):
 
 
 # ============================================================
-# 3. BUSINESS ADVISOR: EVIDENCE-BASED OPPORTUNITY ANALYSIS
-# ============================================================
-def business_opportunity_analysis(df):
-    """
-    Calculate potential business opportunities from available data.
-
-    This function calculates evidence using Pandas. The LLM interprets
-    the evidence later; it does not invent or calculate the metrics.
-    """
-    review = automatic_review(df)
-    roles = review["roles"]
-
-    revenue_col = roles.get("revenue")
-    profit_col = roles.get("profit")
-    quantity_col = roles.get("quantity")
-    date_col = roles.get("date")
-
-    dimensions = []
-
-    for role in ["product", "category", "region", "customer"]:
-        col = roles.get(role)
-
-        if col and col in df.columns and col not in dimensions:
-            dimensions.append(col)
-
-    result = {
-        "answer": "",
-        "table": None,
-        "chart": None,
-        "data": df,
-        "evidence_tables": {},
-        "key_findings": [],
-        "available_fields": {
-            "revenue": revenue_col,
-            "profit": profit_col,
-            "quantity": quantity_col,
-            "date": date_col,
-            "dimensions": dimensions,
-        },
-    }
-
-    if not revenue_col:
-        result["answer"] = (
-            "I couldn't confidently identify a revenue or sales-value column. "
-            "I can still inspect your data, but I can't responsibly identify "
-            "revenue-growth priorities without a suitable revenue measure. "
-            "Check the column names or rename the relevant field to something "
-            "like Revenue, Sales, or Sales Amount."
-        )
-
-        if dimensions:
-            result["key_findings"].append(
-                "Potential grouping fields were detected: "
-                + ", ".join(str(c) for c in dimensions)
-                + "."
-            )
-
-        return result
-
-    revenue = numeric_series(df[revenue_col])
-    valid_revenue = revenue.dropna()
-
-    if valid_revenue.empty:
-        result["answer"] = (
-            f"The column `{revenue_col}` was identified as revenue, "
-            "but it contains no usable numeric values."
-        )
-        return result
-
-    total_revenue = float(valid_revenue.sum())
-    average_revenue = float(valid_revenue.mean())
-    median_revenue = float(valid_revenue.median())
-
-    result["key_findings"].append(
-        f"Total of the identified revenue field `{revenue_col}`: "
-        f"{total_revenue:,.2f} across {len(valid_revenue):,} non-missing rows."
-    )
-    result["key_findings"].append(
-        f"Average row-level value for `{revenue_col}`: {average_revenue:,.2f}; "
-        f"median: {median_revenue:,.2f}. These are row-level values, "
-        "not necessarily average order values."
-    )
-
-    summary = {
-        "Metric": ["Total revenue", "Average row-level revenue", "Median row-level revenue"],
-        "Value": [total_revenue, average_revenue, median_revenue],
-    }
-    result["evidence_tables"]["Revenue summary"] = pd.DataFrame(summary)
-
-    if profit_col:
-        profit = numeric_series(df[profit_col])
-        valid_profit = profit.dropna()
-
-        if len(valid_profit):
-            total_profit = float(valid_profit.sum())
-            result["key_findings"].append(
-                f"Total of the identified profit field `{profit_col}`: "
-                f"{total_profit:,.2f}."
-            )
-
-            result["evidence_tables"]["Profit summary"] = pd.DataFrame({
-                "Metric": ["Total profit", "Average row-level profit"],
-                "Value": [
-                    total_profit,
-                    float(valid_profit.mean()),
-                ],
-            })
-
-            # Revenue and profit may be on different rows or currencies;
-            # this is a simple dataset-level ratio, not a verified accounting margin.
-            if total_revenue != 0:
-                result["key_findings"].append(
-                    f"Dataset-level profit-to-revenue ratio: "
-                    f"{total_profit / total_revenue * 100:.2f}%, "
-                    "calculated from the identified fields. Confirm the "
-                    "fields use consistent periods, currencies, and accounting definitions."
-                )
-
-    if quantity_col:
-        quantity = numeric_series(df[quantity_col])
-        valid_quantity = quantity.dropna()
-
-        if len(valid_quantity):
-            result["key_findings"].append(
-                f"Total of the identified quantity field `{quantity_col}`: "
-                f"{valid_quantity.sum():,.2f}."
-            )
-
-    # Compare performance across useful business dimensions.
-    for dimension in dimensions:
-        work = pd.DataFrame({
-            "_dimension": df[dimension].astype("string").fillna("(Missing)"),
-            "_revenue": revenue,
-        })
-
-        if profit_col:
-            work["_profit"] = numeric_series(df[profit_col])
-
-        if quantity_col:
-            work["_quantity"] = numeric_series(df[quantity_col])
-
-        aggregations = {"_revenue": "sum"}
-
-        if profit_col:
-            aggregations["_profit"] = "sum"
-
-        if quantity_col:
-            aggregations["_quantity"] = "sum"
-
-        grouped = (
-            work.groupby("_dimension", dropna=False)
-            .agg(aggregations)
-            .reset_index()
-            .rename(columns={
-                "_dimension": dimension,
-                "_revenue": "Revenue",
-                "_profit": "Profit",
-                "_quantity": "Quantity",
-            })
-        )
-
-        grouped = grouped.sort_values(
-            "Revenue",
-            ascending=False,
-        )
-
-        result["evidence_tables"][f"Revenue by {dimension}"] = grouped.head(30)
-
-        nonmissing_grouped = grouped[
-            grouped[dimension] != "(Missing)"
-        ]
-
-        if not nonmissing_grouped.empty:
-            top = nonmissing_grouped.iloc[0]
-            result["key_findings"].append(
-                f"Highest-revenue `{dimension}` in this dataset: "
-                f"{top[dimension]} with revenue of {top['Revenue']:,.2f}."
-            )
-
-            bottom = nonmissing_grouped.sort_values(
-                "Revenue",
-                ascending=True,
-            ).iloc[0]
-
-            if len(nonmissing_grouped) > 1:
-                result["key_findings"].append(
-                    f"Lowest-revenue `{dimension}` among the observed groups: "
-                    f"{bottom[dimension]} with revenue of {bottom['Revenue']:,.2f}. "
-                    "Low revenue alone does not establish that this group has "
-                    "untapped potential; group size and business context matter."
-                )
-
-    # Analyze trends and recent performance where a usable date column exists.
-    if date_col:
-        work = pd.DataFrame({
-            "_date": pd.to_datetime(df[date_col], errors="coerce"),
-            "_revenue": revenue,
-        }).dropna()
-
-        if not work.empty:
-            work["_period"] = work["_date"].dt.to_period("M").dt.to_timestamp()
-
-            monthly = (
-                work.groupby("_period")["_revenue"]
-                .sum()
-                .reset_index()
-                .rename(columns={
-                    "_period": "Month",
-                    "_revenue": "Revenue",
-                })
-                .sort_values("Month")
-            )
-
-            result["evidence_tables"]["Monthly revenue"] = monthly.tail(36)
-
-            if len(monthly) >= 2:
-                latest = float(monthly.iloc[-1]["Revenue"])
-                previous = float(monthly.iloc[-2]["Revenue"])
-
-                if previous != 0:
-                    change_pct = (latest - previous) / abs(previous) * 100
-
-                    result["key_findings"].append(
-                        f"Revenue in the latest observed month "
-                        f"({monthly.iloc[-1]['Month']:%Y-%m}) was {latest:,.2f}, "
-                        f"compared with {previous:,.2f} in the preceding observed "
-                        f"month, a change of {change_pct:+.2f}%."
-                    )
-                else:
-                    result["key_findings"].append(
-                        f"Revenue in the latest observed month was {latest:,.2f}; "
-                        "the preceding observed month had zero revenue, so a "
-                        "percentage change cannot be calculated."
-                    )
-
-                # Compare the last three observed months with the previous
-                # three observed months. These are observed periods, not
-                # necessarily consecutive calendar months.
-                if len(monthly) >= 6:
-                    recent = float(monthly.tail(3)["Revenue"].sum())
-                    previous_three = float(
-                        monthly.iloc[-6:-3]["Revenue"].sum()
-                    )
-
-                    if previous_three != 0:
-                        recent_change = (
-                            (recent - previous_three)
-                            / abs(previous_three)
-                            * 100
-                        )
-
-                        result["key_findings"].append(
-                            f"Revenue across the latest three observed months "
-                            f"was {recent:,.2f}, compared with "
-                            f"{previous_three:,.2f} across the preceding three "
-                            f"observed months ({recent_change:+.2f}%)."
-                        )
-
-            result["chart"] = px.line(
-                monthly.tail(24),
-                x="Month",
-                y="Revenue",
-                markers=True,
-                title="Observed monthly revenue",
-            )
-
-    if not dimensions and not date_col:
-        result["key_findings"].append(
-            "No suitable product, category, region, customer, or date field "
-            "was detected for segmentation or trend analysis. The current "
-            "dataset supports a basic revenue summary, but more dimensions "
-            "would help identify actionable growth opportunities."
-        )
-
-    result["answer"] = (
-        "## Business opportunity analysis\n\n"
-        "I analyzed the available revenue data and looked for useful breakdowns "
-        "by business dimension and time period. The evidence below is based on "
-        "the uploaded dataset. It identifies patterns to investigate, not "
-        "guaranteed causes or guaranteed revenue gains.\n\n"
-        + "\n".join(f"- {finding}" for finding in result["key_findings"])
-    )
-
-    return result
-
-
-def business_advice_with_llm(question, result):
-    """
-    Ask the LLM to interpret pre-calculated evidence and prioritize actions.
-    The model must distinguish observed facts from hypotheses.
-    """
-    llm = get_llm()
-
-    evidence_tables = {}
-
-    for name, table in result.get("evidence_tables", {}).items():
-        if isinstance(table, pd.DataFrame):
-            evidence_tables[name] = table.head(30).to_dict(
-                orient="records"
-            )
-
-    payload = {
-        "business_question": question,
-        "calculated_findings": result.get("key_findings", []),
-        "available_fields": result.get("available_fields", {}),
-        "evidence_tables": evidence_tables,
-    }
-
-    response = llm.invoke([
-        SystemMessage(content="""
-You are DEXCR's Business Advisor, an evidence-based business intelligence analyst.
-
-The user wants to improve business performance. You have been given findings and
-tables calculated from their actual dataset. Use these as your evidence.
-
-Your job:
-1. Answer the user's business question directly.
-2. Prioritize up to three actions, ranking them by how strongly the data supports
-   investigating them. Explain why each action deserves attention.
-3. Cite the exact figures or group names from the supplied evidence when relevant.
-4. Explain the possible business mechanism: for example, improving product mix,
-   investigating a declining region, retaining customers, or reviewing pricing.
-5. Separate observed facts from hypotheses. The data may show where performance
-   differs without explaining why it differs.
-6. Do not invent numbers, columns, customers, products, causes, or expected revenue
-   gains. Do not promise a particular financial outcome.
-7. If the dataset lacks profit, customer, product, region, date, or other relevant
-   fields, state the limitation and explain what additional data would help.
-8. Do not assume that the lowest-performing group is automatically the best
-   growth opportunity. Consider size, trend, profitability, and available evidence.
-9. End with a short list of practical next steps or questions to validate the
-   recommendation.
-
-Use this format:
-
-### Recommendation
-A concise direct answer.
-
-### What the data tells us
-The strongest relevant findings with supporting numbers.
-
-### Priorities to investigate
-Ranked actions. For each, state why, the supporting evidence, and what to check.
-
-### What we cannot conclude yet
-Important data limitations and hypotheses that require validation.
-
-### Recommended next step
-One concrete next analysis or business experiment.
-
-Be clear, specific, and concise. If no revenue column was detected, do not pretend
-that a revenue-growth analysis was completed.
-"""),
-        HumanMessage(
-            content=json.dumps(
-                payload,
-                ensure_ascii=False,
-                default=str,
-            )
-        ),
-    ])
-
-    content = response.content
-
-    if isinstance(content, str):
-        return content
-
-    if isinstance(content, list):
-        return "\n".join(
-            item.get("text", "")
-            for item in content
-            if isinstance(item, dict)
-        )
-
-    return str(content)
-
-
-# ============================================================
-# 4. LANGCHAIN LLM: QWEN OR OPENAI
+# 3. LANGCHAIN LLM (QWEN OR OPENAI-COMPATIBLE PROVIDER)
 # ============================================================
 def get_llm():
     if not LANGCHAIN_AVAILABLE:
         raise RuntimeError(
-            "LangChain is missing. Add langchain-core and langchain-openai to requirements.txt."
+            "LangChain is missing. Add langchain-core and "
+            "langchain-openai to requirements.txt."
         )
 
     provider = str(setting("LLM_PROVIDER", "qwen")).lower()
@@ -950,7 +346,10 @@ def get_llm():
         )
 
     if provider == "qwen":
-        api_key = setting("LLM_API_KEY") or setting("DASHSCOPE_API_KEY")
+        api_key = (
+            setting("LLM_API_KEY")
+            or setting("DASHSCOPE_API_KEY")
+        )
 
         if not api_key:
             raise ValueError(
@@ -978,15 +377,9 @@ def get_llm_plan(question, df):
 
     system = """
 You are DEXCR, a business intelligence question interpreter.
-
-Translate the question into ONE JSON object that describes an analysis.
-Never calculate results. Use only exact column names from the supplied schema.
-Do not return Python, SQL, or markdown.
-
+Translate the question into ONE JSON object that describes an analysis. Never calculate results.
+Use only exact column names from the supplied schema. Do not return Python, SQL, or markdown.
 Operations:
-- business_advisor: strategic business questions asking what to focus on,
-  how to increase revenue or profit, improve performance, find opportunities,
-  or understand what action to take
 - profile: dataset summary
 - columns: list columns
 - missing: missing-data analysis
@@ -1000,39 +393,22 @@ Operations:
 - correlation: correlations among numeric columns
 - filter: filter rows
 - unknown: unsupported or underspecified request
-
-Use business_advisor for questions such as:
-"What should I focus on to increase revenue?"
-"How can I improve sales?"
-"Where are my biggest business opportunities?"
-"How can I improve profitability?"
-"What should I do to grow my business?"
-"What actions should I take based on this data?"
-
-Do NOT map strategic questions to a simple rank or aggregate just because they
-mention revenue or sales. Use business_advisor when the user asks for advice,
-priorities, opportunities, or actions.
-
 Aggregations: sum, mean, median, min, max, count, nunique, std.
 Filter operators: eq, ne, gt, gte, lt, lte, contains, between.
 Best-selling means quantity/units if available. Highest revenue uses revenue/sales.
 Most profitable requires a profit column; never substitute revenue.
 For trend/forecast, select a real date column and numeric metric.
-
 Return keys:
 operation, metric_column, entity_column, aggregation, group_by, direction,
 top_n, date_column, frequency, periods, column, columns, filters, answer_note.
-
-For filters, return a list of objects:
-{"column": "...", "operator": "...", "value": "..."}.
+For filters, return a list of objects: {"column": "...", "operator": "...", "value": "..."}.
 """
 
     request = {
         "question": question,
         "columns": schema_for_llm(df),
         "detected_roles": {
-            k: str(v)
-            for k, v in review["roles"].items()
+            k: str(v) for k, v in review["roles"].items()
         },
     }
 
@@ -1053,9 +429,9 @@ For filters, return a list of objects:
 
     if isinstance(content, list):
         content = "".join(
-            item.get("text", "")
-            for item in content
-            if isinstance(item, dict)
+            x.get("text", "")
+            for x in content
+            if isinstance(x, dict)
         )
 
     plan = json.loads(content)
@@ -1106,9 +482,9 @@ Keep it concise."""),
 
         if isinstance(content, list):
             return "\n".join(
-                item.get("text", "")
-                for item in content
-                if isinstance(item, dict)
+                x.get("text", "")
+                for x in content
+                if isinstance(x, dict)
             )
 
         return str(content)
@@ -1122,33 +498,18 @@ Keep it concise."""),
 
 
 # ============================================================
-# 5. SAFE PLAN VALIDATION
+# 4. SAFE PLAN VALIDATION
 # ============================================================
 OPERATIONS = {
-    "business_advisor",
-    "profile",
-    "columns",
-    "missing",
-    "duplicates",
-    "show_rows",
-    "aggregate",
-    "rank",
-    "trend",
-    "forecast",
-    "distribution",
-    "correlation",
-    "filter",
-    "unknown",
+    "profile", "columns", "missing", "duplicates", "show_rows",
+    "aggregate", "rank", "trend", "forecast", "distribution",
+    "correlation", "filter", "unknown",
 }
-
 AGGS = {
-    "sum", "mean", "median", "min", "max",
-    "count", "nunique", "std",
+    "sum", "mean", "median", "min", "max", "count", "nunique", "std"
 }
-
 OPS = {
-    "eq", "ne", "gt", "gte", "lt", "lte",
-    "contains", "between",
+    "eq", "ne", "gt", "gte", "lt", "lte", "contains", "between"
 }
 
 
@@ -1157,16 +518,12 @@ def validate_plan(plan, df):
         raise ValueError("Analysis plan is not a dictionary.")
 
     p = dict(plan)
-    p["operation"] = str(
-        p.get("operation", "unknown")
-    ).lower()
+    p["operation"] = str(p.get("operation", "unknown")).lower()
 
     if p["operation"] not in OPERATIONS:
         p["operation"] = "unknown"
 
-    p["aggregation"] = str(
-        p.get("aggregation", "sum")
-    ).lower()
+    p["aggregation"] = str(p.get("aggregation", "sum")).lower()
 
     if p["aggregation"] not in AGGS:
         p["aggregation"] = "sum"
@@ -1203,8 +560,7 @@ def validate_plan(plan, df):
         p["frequency"] = "month"
 
     for key in [
-        "metric_column", "entity_column",
-        "date_column", "column",
+        "metric_column", "entity_column", "date_column", "column"
     ]:
         value = p.get(key)
 
@@ -1220,10 +576,7 @@ def validate_plan(plan, df):
         if not isinstance(value, list):
             value = []
 
-        p[key] = [
-            x for x in value
-            if x in df.columns
-        ]
+        p[key] = [x for x in value if x in df.columns]
 
     filters = p.get("filters", [])
     p["filters"] = []
@@ -1236,9 +589,7 @@ def validate_plan(plan, df):
             ):
                 continue
 
-            op = str(
-                f.get("operator", "eq")
-            ).lower()
+            op = str(f.get("operator", "eq")).lower()
 
             if op not in OPS:
                 continue
@@ -1253,7 +604,7 @@ def validate_plan(plan, df):
 
 
 # ============================================================
-# 6. LOCAL INTERPRETER FALLBACK
+# 5. LOCAL INTERPRETER FALLBACK
 # ============================================================
 def local_plan(question, df):
     q = norm(question)
@@ -1281,13 +632,10 @@ def local_plan(question, df):
     }
 
     def has(*words):
-        return any(norm(word) in q for word in words)
+        return any(norm(w) in q for w in words)
 
     mentioned = next(
-        (
-            col for col in df.columns
-            if norm(col) and norm(col) in q
-        ),
+        (c for c in df.columns if norm(c) and norm(c) in q),
         None,
     )
 
@@ -1297,11 +645,10 @@ def local_plan(question, df):
         or (numeric[0] if numeric else None)
     )
 
-    if has("profit", "profitable", "profitability"):
+    if has("profit", "profitable"):
         metric = roles.get("profit")
     elif has(
-        "quantity", "units sold", "volume",
-        "best selling", "bestselling",
+        "quantity", "units sold", "volume", "best selling", "bestselling"
     ):
         metric = roles.get("quantity") or metric
     elif has("cost", "expenses"):
@@ -1313,87 +660,27 @@ def local_plan(question, df):
 
     if has("customer", "client", "buyer"):
         entity = roles.get("customer") or entity
-    elif has(
-        "region", "country", "city",
-        "territory", "branch",
-    ):
+    elif has("region", "country", "city", "territory", "branch"):
         entity = roles.get("region") or entity
     elif has("category", "department", "segment"):
         entity = roles.get("category") or entity
 
     plan["entity_column"] = entity
 
-    # Strategic questions should use the Business Advisor, not just a ranking.
-    business_advisor_phrases = [
-        "increase revenue",
-        "grow revenue",
-        "grow my business",
-        "increase sales",
-        "improve sales",
-        "improve revenue",
-        "improve profitability",
-        "increase profit",
-        "grow profit",
-        "business opportunity",
-        "business opportunities",
-        "what should i focus on",
-        "what should we focus on",
-        "what should i do",
-        "what should we do",
-        "what actions",
-        "recommendation",
-        "recommendations",
-        "how can i improve",
-        "how can we improve",
-        "how can i increase",
-        "how can we increase",
-        "how do i increase",
-        "how do we increase",
-        "where should i focus",
-        "where should we focus",
-        "prioritize",
-        "priorities",
-        "action plan",
-        "business strategy",
-        "growth strategy",
-        "growth opportunities",
-        "improve performance",
-        "improve business performance",
-        "increase my revenue",
-        "increase our revenue",
-        "increase our sales",
-        "increase my sales",
-        "help me grow",
-        "help us grow",
-    ]
-
-    is_business_advisor_question = any(
-        phrase in q
-        for phrase in business_advisor_phrases
-    )
-
-    if is_business_advisor_question:
-        plan["operation"] = "business_advisor"
-
-    elif has(
-        "column names", "list columns",
-        "what columns", "available columns",
+    if has(
+        "column names", "list columns", "what columns", "available columns"
     ):
         plan["operation"] = "columns"
 
-    elif has(
-        "missing", "null values",
-        "data quality", "incomplete data",
-    ):
+    elif has("missing", "null values", "data quality", "incomplete data"):
         plan["operation"] = "missing"
 
     elif has("duplicate", "duplicates"):
         plan["operation"] = "duplicates"
 
     elif has(
-        "profile", "overview", "summarize dataset",
-        "summary of dataset", "analyze my data",
-        "analyse my data",
+        "profile", "overview", "summarize dataset", "summary of dataset",
+        "analyze my data", "analyse my data"
     ):
         plan["operation"] = "profile"
 
@@ -1401,14 +688,10 @@ def local_plan(question, df):
         plan["operation"] = "correlation"
         plan["columns"] = numeric
 
-    elif has(
-        "forecast", "predict", "future",
-        "next month", "next year",
-    ):
+    elif has("forecast", "predict", "future", "next month", "next year"):
         plan["operation"] = "forecast"
-        plan["date_column"] = (
-            roles.get("date")
-            or (dates[0] if dates else None)
+        plan["date_column"] = roles.get("date") or (
+            dates[0] if dates else None
         )
 
         nums = re.findall(r"\b(\d{1,2})\b", q)
@@ -1429,13 +712,12 @@ def local_plan(question, df):
                 plan["frequency"] = freq
 
     elif has(
-        "trend", "over time", "by month",
-        "monthly", "by year", "sales over time",
+        "trend", "over time", "by month", "monthly", "by year",
+        "sales over time"
     ):
         plan["operation"] = "trend"
-        plan["date_column"] = (
-            roles.get("date")
-            or (dates[0] if dates else None)
+        plan["date_column"] = roles.get("date") or (
+            dates[0] if dates else None
         )
 
         if has("weekly", "by week"):
@@ -1452,14 +734,13 @@ def local_plan(question, df):
         plan["column"] = mentioned or metric
 
     elif has(
-        "show rows", "show records",
-        "preview", "sample rows", "first rows",
+        "show rows", "show records", "preview", "sample rows", "first rows"
     ):
         plan["operation"] = "show_rows"
 
     elif has(
-        "top", "highest", "best", "most",
-        "rank", "leading", "lowest", "least",
+        "top", "highest", "best", "most", "rank", "leading",
+        "lowest", "least"
     ):
         plan["operation"] = "rank"
 
@@ -1511,25 +792,20 @@ def local_plan(question, df):
         plan["answer_note"] = (
             "I couldn't confidently map that question to an analysis. "
             "Try asking for total revenue, top products, monthly trends, "
-            "missing values, a forecast, or a business recommendation such "
-            "as 'What should I focus on to increase revenue?'"
+            "missing values, or a forecast."
         )
 
     return validate_plan(plan, df)
 
 
 # ============================================================
-# 7. FILTERS AND ANALYSIS EXECUTION
+# 6. FILTERS AND ANALYSIS EXECUTION
 # ============================================================
 def apply_filters(df, filters):
     result = df.copy()
 
     for f in filters:
-        col, op, value = (
-            f["column"],
-            f["operator"],
-            f["value"],
-        )
+        col, op, value = f["column"], f["operator"], f["value"]
         s = result[col]
 
         try:
@@ -1593,7 +869,6 @@ def apply_filters(df, filters):
 def execute_plan(df, plan):
     op = plan["operation"]
     data = apply_filters(df, plan.get("filters", []))
-
     result = {
         "answer": "",
         "table": None,
@@ -1601,14 +876,11 @@ def execute_plan(df, plan):
         "data": data,
     }
 
-    # New strategic analysis operation.
-    if op == "business_advisor":
-        return business_opportunity_analysis(data)
-
     if op == "unknown":
         result["answer"] = (
             plan.get("answer_note")
-            or "I could not determine the right analysis. Please rephrase the question."
+            or "I could not determine the right analysis. "
+            "Please rephrase the question."
         )
 
     elif op == "columns":
@@ -1617,10 +889,7 @@ def execute_plan(df, plan):
         )
         result["table"] = pd.DataFrame({
             "Column": df.columns,
-            "Data type": [
-                str(df[c].dtype)
-                for c in df.columns
-            ],
+            "Data type": [str(df[c].dtype) for c in df.columns],
         })
 
     elif op == "profile":
@@ -1628,17 +897,12 @@ def execute_plan(df, plan):
         result["answer"] = "\n\n".join(review["insights"])
         result["table"] = pd.DataFrame({
             "Column": data.columns,
-            "Data type": [
-                str(data[c].dtype)
-                for c in data.columns
-            ],
+            "Data type": [str(data[c].dtype) for c in data.columns],
             "Missing": [
-                int(data[c].isna().sum())
-                for c in data.columns
+                int(data[c].isna().sum()) for c in data.columns
             ],
             "Unique": [
-                int(data[c].nunique(dropna=True))
-                for c in data.columns
+                int(data[c].nunique(dropna=True)) for c in data.columns
             ],
         })
 
@@ -1646,8 +910,7 @@ def execute_plan(df, plan):
         table = pd.DataFrame({
             "Column": data.columns,
             "Missing": [
-                int(data[c].isna().sum())
-                for c in data.columns
+                int(data[c].isna().sum()) for c in data.columns
             ],
             "Missing %": [
                 round(data[c].isna().mean() * 100, 2)
@@ -1735,14 +998,17 @@ def execute_plan(df, plan):
 
                 if agg is None:
                     result["answer"] = "Unsupported aggregation."
+
                 else:
                     result["table"] = agg().reset_index(
                         name=f"{plan['aggregation']}_{metric}"
                     )
+
                     result["table"] = result["table"].sort_values(
                         result["table"].columns[-1],
                         ascending=False,
                     )
+
                     result["chart"] = px.bar(
                         result["table"].head(30),
                         x=plan["group_by"][0],
@@ -1752,11 +1018,13 @@ def execute_plan(df, plan):
                             f"by {plan['group_by'][0]}"
                         ),
                     )
+
             else:
                 val = getattr(
                     values,
                     plan["aggregation"],
                 )()
+
                 result["answer"] = (
                     f"{plan['aggregation'].title()} of `{metric}`: "
                     f"**{val:,.2f}**."
@@ -1771,19 +1039,15 @@ def execute_plan(df, plan):
                 "I couldn't identify both an entity (such as product) "
                 "and a measure (such as sales or quantity)."
             )
+
         else:
             work = data[[entity]].copy()
             work["_metric"] = numeric_series(data[metric])
 
             grouped = (
-                work.groupby(
-                    entity,
-                    dropna=False,
-                )["_metric"]
+                work.groupby(entity, dropna=False)["_metric"]
                 .agg(plan["aggregation"])
-                .reset_index(
-                    name=f"{plan['aggregation']}_{metric}"
-                )
+                .reset_index(name=f"{plan['aggregation']}_{metric}")
             )
 
             grouped = grouped.sort_values(
@@ -1792,15 +1056,18 @@ def execute_plan(df, plan):
             ).head(plan["top_n"])
 
             result["table"] = grouped
+
             label = (
                 "lowest"
                 if plan["direction"] == "asc"
                 else "highest"
             )
+
             result["answer"] = (
                 f"Showing the {label}-ranked `{entity}` values "
                 f"by {plan['aggregation']} of `{metric}`."
             )
+
             result["chart"] = px.bar(
                 grouped,
                 x=entity,
@@ -1814,9 +1081,10 @@ def execute_plan(df, plan):
 
         if not date_col or not metric:
             result["answer"] = (
-                "A time analysis needs a date column and a numeric measure. "
-                "I couldn't identify both."
+                "A time analysis needs a date column and a numeric "
+                "measure. I couldn't identify both."
             )
+
         else:
             work = pd.DataFrame({
                 "_date": pd.to_datetime(
@@ -1828,8 +1096,10 @@ def execute_plan(df, plan):
 
             if work.empty:
                 result["answer"] = (
-                    "No valid date/metric rows were available for time analysis."
+                    "No valid date/metric rows were available "
+                    "for time analysis."
                 )
+
             else:
                 freq_map = {
                     "day": "D",
@@ -1838,6 +1108,7 @@ def execute_plan(df, plan):
                     "quarter": "QS",
                     "year": "YS",
                 }
+
                 freq = freq_map[plan["frequency"]]
                 work = work.set_index("_date").sort_index()
 
@@ -1849,9 +1120,11 @@ def execute_plan(df, plan):
                     series = work["_value"].resample(freq).sum()
 
                 series = series.dropna()
-                history = series.rename("actual").reset_index()
-                history = history.rename(
-                    columns={"_date": "period"}
+
+                history = (
+                    series.rename("actual")
+                    .reset_index()
+                    .rename(columns={"_date": "period"})
                 )
 
                 if op == "trend":
@@ -1871,82 +1144,90 @@ def execute_plan(df, plan):
                         ),
                     )
 
-                elif len(series) < 2:
-                    result["answer"] = (
-                        "At least two non-empty time periods are needed "
-                        "for a basic forecast."
-                    )
-
                 else:
-                    y = series.to_numpy(dtype=float)
-                    x = np.arange(len(y), dtype=float)
-                    slope, intercept = np.polyfit(x, y, 1)
+                    if len(series) < 2:
+                        result["answer"] = (
+                            "At least two non-empty time periods are "
+                            "needed for a basic forecast."
+                        )
 
-                    future_x = np.arange(
-                        len(y),
-                        len(y) + plan["periods"],
-                        dtype=float,
-                    )
+                    else:
+                        y = series.to_numpy(dtype=float)
+                        x = np.arange(len(y), dtype=float)
+                        slope, intercept = np.polyfit(x, y, 1)
 
-                    predicted = intercept + slope * future_x
+                        future_x = np.arange(
+                            len(y),
+                            len(y) + plan["periods"],
+                            dtype=float,
+                        )
 
-                    if (y >= 0).all():
-                        predicted = np.maximum(predicted, 0)
-
-                    last_date = series.index[-1]
-                    future_dates = []
-
-                    for i in range(1, plan["periods"] + 1):
-                        if freq == "D":
-                            future_dates.append(
-                                last_date + pd.Timedelta(days=i)
+                        predicted = (
+                            np.maximum(
+                                intercept + slope * future_x,
+                                0,
                             )
-                        elif freq == "W":
-                            future_dates.append(
-                                last_date + pd.Timedelta(weeks=i)
-                            )
-                        elif freq == "MS":
-                            future_dates.append(
-                                last_date + pd.offsets.MonthBegin(i)
-                            )
-                        elif freq == "QS":
-                            future_dates.append(
-                                last_date + pd.offsets.QuarterBegin(i)
-                            )
-                        else:
-                            future_dates.append(
-                                last_date + pd.offsets.YearBegin(i)
-                            )
+                            if (y >= 0).all()
+                            else intercept + slope * future_x
+                        )
 
-                    forecast = pd.DataFrame({
-                        "period": future_dates,
-                        "forecast": predicted,
-                    })
+                        future_dates = []
+                        last_date = series.index[-1]
 
-                    result["table"] = forecast
-                    result["answer"] = (
-                        f"Basic linear trend forecast for `{metric}` over "
-                        f"the next {plan['periods']} {plan['frequency']} "
-                        "period(s). This is a simple baseline, not a guarantee."
-                    )
+                        for i in range(1, plan["periods"] + 1):
+                            if freq == "D":
+                                future_dates.append(
+                                    last_date + pd.Timedelta(days=i)
+                                )
+                            elif freq == "W":
+                                future_dates.append(
+                                    last_date + pd.Timedelta(weeks=i)
+                                )
+                            elif freq == "MS":
+                                future_dates.append(
+                                    last_date + pd.offsets.MonthBegin(i)
+                                )
+                            elif freq == "QS":
+                                future_dates.append(
+                                    last_date + pd.offsets.QuarterBegin(i)
+                                )
+                            else:
+                                future_dates.append(
+                                    last_date + pd.offsets.YearBegin(i)
+                                )
 
-                    fig = px.line(
-                        history,
-                        x="period",
-                        y="actual",
-                        markers=True,
-                        title=(
-                            f"{metric}: historical values "
-                            "and baseline forecast"
-                        ),
-                    )
-                    fig.add_scatter(
-                        x=forecast["period"],
-                        y=forecast["forecast"],
-                        mode="lines+markers",
-                        name="Forecast",
-                    )
-                    result["chart"] = fig
+                        forecast = pd.DataFrame({
+                            "period": future_dates,
+                            "forecast": predicted,
+                        })
+
+                        result["table"] = forecast
+                        result["answer"] = (
+                            f"Basic linear trend forecast for `{metric}` "
+                            f"over the next {plan['periods']} "
+                            f"{plan['frequency']} period(s). "
+                            "This is a simple baseline, not a guarantee."
+                        )
+
+                        fig = px.line(
+                            history,
+                            x="period",
+                            y="actual",
+                            markers=True,
+                            title=(
+                                f"{metric}: historical values "
+                                "and baseline forecast"
+                            ),
+                        )
+
+                        fig.add_scatter(
+                            x=forecast["period"],
+                            y=forecast["forecast"],
+                            mode="lines+markers",
+                            name="Forecast",
+                        )
+
+                        result["chart"] = fig
 
     elif op == "distribution":
         col = plan.get("column") or plan.get("metric_column")
@@ -1976,15 +1257,16 @@ def execute_plan(df, plan):
 
         else:
             result["table"] = (
-                data[col].astype("string")
+                data[col]
+                .astype("string")
                 .value_counts(dropna=False)
                 .head(50)
                 .rename_axis(col)
                 .reset_index(name="count")
             )
-            result["answer"] = (
-                f"Most frequent values in `{col}`."
-            )
+
+            result["answer"] = f"Most frequent values in `{col}`."
+
             result["chart"] = px.bar(
                 result["table"].head(25),
                 x=col,
@@ -2005,6 +1287,7 @@ def execute_plan(df, plan):
             result["answer"] = (
                 "At least two numeric columns are needed for correlation."
             )
+
         else:
             corr = data[cols].apply(numeric_series).corr()
             result["table"] = corr.reset_index(names="Column")
@@ -2012,6 +1295,7 @@ def execute_plan(df, plan):
                 "Correlation matrix for numeric columns. "
                 "Correlation shows association, not causation."
             )
+
             result["chart"] = px.imshow(
                 corr,
                 text_auto=".2f",
@@ -2026,21 +1310,11 @@ def execute_plan(df, plan):
 
 
 # ============================================================
-# 8. SIDEBAR AND DATA SOURCE
+# 7. SIDEBAR AND DATA SOURCE
 # ============================================================
-st.sidebar.markdown("""
-<div style="padding: 12px 0 22px 0;">
-    <div class="brand-mark">DEXCR<span style="color:#a79cff;">.</span></div>
-    <div class="brand-caption">Make your data make sense.</div>
-    <div class="brand-caption" style="margin-top:12px;">
-        Your business intelligence workspace
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
+st.sidebar.markdown("## DEXCR")
+st.sidebar.caption("AI Data Analyst")
 st.sidebar.markdown("---")
-st.sidebar.markdown("### Your data")
-st.sidebar.caption("Upload a dataset to start exploring.")
 
 uploaded = st.sidebar.file_uploader(
     "Upload your dataset",
@@ -2064,68 +1338,34 @@ if uploaded is not None:
 
 elif use_sample and (BASE_DIR / "sales_transactions.csv").exists():
     try:
-        df = load_sample_data()
+        df = pd.read_csv(
+            BASE_DIR / "sales_transactions.csv",
+            low_memory=False,
+        )
         source_name = "sales_transactions.csv"
     except Exception as exc:
         st.sidebar.error(f"Could not read sample data: {exc}")
 
 
-# ============================================================
-# 9. HERO / WELCOME
-# ============================================================
 st.markdown("""
 <div class="hero">
-    <div class="eyebrow">YOUR DATA. YOUR DECISIONS.</div>
-    <h1>DEXCR</h1>
-    <div class="tagline">Make your data make sense.</div>
-    <p>
-        Your AI-powered business intelligence workspace. Explore your numbers,
-        uncover trends, and ask questions in plain English to turn raw data
-        into clearer business decisions.
-    </p>
+  <h1>DEXCR | AI Data Analyst</h1>
+  <div>Explore your business data, ask questions in plain English, and turn results into decisions.</div>
 </div>
 """, unsafe_allow_html=True)
 
 if df is None:
-    st.markdown("### Welcome to your data workspace")
-    st.markdown(
-        "Start by uploading a CSV or Excel file from the sidebar. "
-        "DEXCR will profile your dataset and help you explore it."
-    )
-
-    st.markdown("#### What you can do with DEXCR")
-    c1, c2 = st.columns(2)
-
-    with c1:
-        with st.container(border=True):
-            st.markdown("**📈 Explore performance**")
-            st.caption(
-                "Understand sales, revenue, profit, and product performance."
-            )
-
-        with st.container(border=True):
-            st.markdown("**🔎 Check data quality**")
-            st.caption(
-                "Find missing values, duplicates, and unusual distributions."
-            )
-
-    with c2:
-        with st.container(border=True):
-            st.markdown("**💬 Ask questions in plain English**")
-            st.caption(
-                "Ask business questions instead of writing analysis code."
-            )
-
-        with st.container(border=True):
-            st.markdown("**🎯 Get business recommendations**")
-            st.caption(
-                "Identify patterns and prioritize opportunities using "
-                "evidence from your data."
-            )
-
     st.info(
-        "You can also add `sales_transactions.csv` to the same repository "
-        "as `app.py` to use it as the optional sample dataset."
+        "Upload a CSV or Excel file in the sidebar, or add "
+        "`sales_transactions.csv` to the repository."
+    )
+    st.markdown("### What you can ask")
+    st.markdown(
+        "- What are my top products by revenue?\n"
+        "- Show monthly sales trends.\n"
+        "- Which regions have the highest sales?\n"
+        "- Find missing values and duplicates.\n"
+        "- Forecast the next 3 months of revenue."
     )
     st.stop()
 
@@ -2133,6 +1373,7 @@ if df.empty:
     st.error("The uploaded dataset has no rows.")
     st.stop()
 
+# Normalize header whitespace, preserve actual names otherwise.
 df.columns = [str(c).strip() for c in df.columns]
 
 review = automatic_review(df)
@@ -2141,51 +1382,33 @@ categorical_cols = review["categorical"]
 date_cols = review["dates"]
 
 st.caption(
-    f"**Current dataset:** {source_name}  ·  "
-    f"{len(df):,} rows  ·  {len(df.columns):,} columns"
+    f"Data source: **{source_name}** · "
+    f"{len(df):,} rows · {len(df.columns):,} columns"
 )
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Total rows", f"{len(df):,}")
-m2.metric("Total columns", f"{len(df.columns):,}")
-m3.metric("Numeric fields", len(numeric_cols))
+m1.metric("Rows", f"{len(df):,}")
+m2.metric("Columns", f"{len(df.columns):,}")
+m3.metric("Numeric columns", len(numeric_cols))
 m4.metric("Missing cells", f"{int(df.isna().sum().sum()):,}")
 
-
-# ============================================================
-# 10. MAIN NAVIGATION
-# ============================================================
-overview_tab, data_tab, explorer_tab, analyst_tab = st.tabs([
-    "Overview",
-    "My Data",
-    "Explore Columns",
-    "Ask DEXCR",
-])
+overview_tab, data_tab, explorer_tab, analyst_tab = st.tabs(
+    ["Overview", "My Data", "Data Explorer", "AI Analyst"]
+)
 
 
 # ============================================================
 # TAB 1: OVERVIEW
 # ============================================================
 with overview_tab:
-    st.subheader("Your data at a glance")
-    st.markdown(
-        '<p class="section-description">'
-        'A quick health check of your dataset and its key metrics.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
+    st.subheader("Automatic data review")
 
-    with st.container(border=True):
-        st.markdown("#### Automatic data review")
-
-        for insight in review["insights"]:
-            st.markdown(f"- {insight}")
+    for insight in review["insights"]:
+        st.markdown(f"- {insight}")
 
     if numeric_cols:
-        st.markdown("#### Explore a key metric")
-
         selected_metric = st.selectbox(
-            "Choose a numeric column to summarize",
+            "Numeric column to summarize",
             numeric_cols,
             key="overview_metric",
         )
@@ -2206,6 +1429,7 @@ with overview_tab:
             f"{vals.median():,.2f}" if len(vals) else "N/A",
         )
 
+        # FIX: explicit unique key for the overview histogram.
         st.plotly_chart(
             px.histogram(
                 pd.DataFrame({selected_metric: vals}),
@@ -2213,6 +1437,7 @@ with overview_tab:
                 title=f"Distribution of {selected_metric}",
             ),
             use_container_width=True,
+            key="overview_distribution_histogram",
         )
 
 
@@ -2220,32 +1445,15 @@ with overview_tab:
 # TAB 2: MY DATA
 # ============================================================
 with data_tab:
-    st.subheader("Your dataset")
-    st.markdown(
-        '<p class="section-description">'
-        'Preview records, inspect column quality, and export your data.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
+    st.subheader("Dataset preview")
+    st.dataframe(df.head(500), use_container_width=True)
 
-    with st.expander("Preview records", expanded=True):
-        st.dataframe(
-            df.head(500),
-            use_container_width=True,
-        )
-
-    st.markdown("#### Column profile")
+    st.subheader("Column profile")
 
     profile = pd.DataFrame({
         "Column": df.columns,
-        "Data type": [
-            str(df[c].dtype)
-            for c in df.columns
-        ],
-        "Missing": [
-            int(df[c].isna().sum())
-            for c in df.columns
-        ],
+        "Data type": [str(df[c].dtype) for c in df.columns],
+        "Missing": [int(df[c].isna().sum()) for c in df.columns],
         "Missing %": [
             round(df[c].isna().mean() * 100, 2)
             for c in df.columns
@@ -2267,16 +1475,10 @@ with data_tab:
 
 
 # ============================================================
-# TAB 3: EXPLORE COLUMNS
+# TAB 3: DATA EXPLORER
 # ============================================================
 with explorer_tab:
     st.subheader("Explore a column")
-    st.markdown(
-        '<p class="section-description">'
-        'Inspect a field’s statistics, distribution, and most common values.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
 
     selected_col = st.selectbox(
         "Choose a column",
@@ -2284,26 +1486,21 @@ with explorer_tab:
         key="explorer_col",
     )
 
-    info1, info2, info3 = st.columns(3)
-    info1.metric("Data type", str(df[selected_col].dtype))
-    info2.metric(
-        "Missing values",
-        f"{int(df[selected_col].isna().sum()):,}",
+    st.write("**Data type:**", df[selected_col].dtype)
+    st.write(
+        "**Missing values:**",
+        int(df[selected_col].isna().sum()),
     )
-    info3.metric(
-        "Unique values",
-        f"{int(df[selected_col].nunique(dropna=True)):,}",
+    st.write(
+        "**Unique values:**",
+        int(df[selected_col].nunique(dropna=True)),
     )
 
     if selected_col in numeric_cols:
         values = numeric_series(df[selected_col]).dropna()
+        st.write(values.describe().to_frame("Statistics"))
 
-        st.markdown("#### Descriptive statistics")
-        st.dataframe(
-            values.describe().to_frame("Statistics"),
-            use_container_width=True,
-        )
-
+        # FIX: unique key for the numeric-column histogram.
         st.plotly_chart(
             px.histogram(
                 pd.DataFrame({selected_col: values}),
@@ -2311,22 +1508,25 @@ with explorer_tab:
                 title=f"Distribution of {selected_col}",
             ),
             use_container_width=True,
+            key="explorer_numeric_histogram",
         )
 
     else:
         counts = (
-            df[selected_col].astype("string")
+            df[selected_col]
+            .astype("string")
             .value_counts(dropna=False)
             .head(50)
         )
 
-        count_df = counts.rename_axis(
-            selected_col
-        ).reset_index(name="count")
+        count_df = (
+            counts.rename_axis(selected_col)
+            .reset_index(name="count")
+        )
 
-        st.markdown("#### Most common values")
         st.dataframe(count_df, use_container_width=True)
 
+        # FIX: unique key for the categorical-column bar chart.
         st.plotly_chart(
             px.bar(
                 count_df.head(25),
@@ -2335,138 +1535,83 @@ with explorer_tab:
                 title=f"Most frequent values in {selected_col}",
             ),
             use_container_width=True,
+            key="explorer_categorical_bar_chart",
         )
 
 
 # ============================================================
-# TAB 4: ASK DEXCR
+# TAB 4: AI ANALYST
 # ============================================================
-def set_analyst_question(question):
-    """
-    Update the widget's session-state value from a button callback.
-
-    Streamlit runs callbacks before the script reruns, avoiding the
-    StreamlitWidgetAlreadyInstantiatedError from changing a widget key
-    after the widget has been instantiated.
-    """
-    st.session_state["analyst_question"] = question
-
-
 with analyst_tab:
     st.subheader("Ask DEXCR")
-    st.markdown(
-        '<p class="section-description">'
-        'Ask a business question in plain English. DEXCR can calculate '
-        'metrics, explore trends, and help prioritize business opportunities.'
-        '</p>',
-        unsafe_allow_html=True,
+    st.write("Ask a business question about the uploaded dataset.")
+
+    question = st.text_area(
+        "Your question",
+        placeholder="Example: Which 10 products generated the most revenue?",
+        height=90,
+        key="analyst_question",
     )
 
-    with st.container(border=True):
-        st.markdown("#### What would you like to understand?")
+    use_llm = st.toggle(
+        "Use LLM for question understanding and explanation",
+        value=True,
+    )
 
-        question = st.text_area(
-            "Your question",
-            placeholder=(
-                "For example: What should I focus on to increase revenue?"
-            ),
-            height=105,
-            key="analyst_question",
-            label_visibility="collapsed",
+    provider = str(setting("LLM_PROVIDER", "qwen")).lower()
+
+    has_key = (
+        bool(setting("OPENAI_API_KEY"))
+        if provider == "openai"
+        else bool(
+            setting("LLM_API_KEY")
+            or setting("DASHSCOPE_API_KEY")
+        )
+    )
+
+    if use_llm and not LANGCHAIN_AVAILABLE:
+        st.warning(
+            "LangChain isn't installed in this environment. "
+            "The local question interpreter will be used."
         )
 
-        st.markdown("**Need inspiration? Try asking:**")
-
-        suggested_questions = [
-            "What should I focus on to increase revenue?",
-            "What are my top products by revenue?",
-            "Show monthly sales trends.",
-            "How can I improve profitability?",
-            "Which regions generate the most revenue?",
-            "Find missing values and duplicates.",
-        ]
-
-        suggestions = st.columns(3)
-
-        for i, suggestion in enumerate(suggested_questions):
-            with suggestions[i % 3]:
-                st.button(
-                    suggestion,
-                    key=f"suggest_{i}",
-                    use_container_width=True,
-                    on_click=set_analyst_question,
-                    args=(suggestion,),
-                )
-
-        use_llm = st.toggle(
-            "Use AI to understand and explain my question",
-            value=True,
+    elif use_llm and not has_key:
+        st.info(
+            "No LLM API key configured. The app will use its local "
+            "interpreter until you add Streamlit Secrets."
         )
 
-        provider = str(
-            setting("LLM_PROVIDER", "qwen")
-        ).lower()
-
-        if provider == "openai":
-            has_key = bool(setting("OPENAI_API_KEY"))
-        else:
-            has_key = bool(
-                setting("LLM_API_KEY")
-                or setting("DASHSCOPE_API_KEY")
-            )
-
-        if use_llm and not LANGCHAIN_AVAILABLE:
-            st.warning(
-                "LangChain isn't installed in this environment. "
-                "The local question interpreter will be used."
-            )
-        elif use_llm and not has_key:
-            st.info(
-                "No LLM API key configured. DEXCR will use its local "
-                "interpreter until you add a key in Streamlit Secrets."
-            )
-
-        run = st.button(
-            "Analyze question",
-            type="primary",
-            disabled=not question.strip(),
-            use_container_width=True,
-        )
+    run = st.button(
+        "Analyze question",
+        type="primary",
+        disabled=not question.strip(),
+    )
 
     if run:
         plan = None
 
         if use_llm and LANGCHAIN_AVAILABLE and has_key:
-            with st.spinner(
-                "Understanding your question with the LLM..."
-            ):
+            with st.spinner("Understanding your question with the LLM..."):
                 try:
-                    plan = get_llm_plan(
-                        question.strip(),
-                        df,
-                    )
+                    plan = get_llm_plan(question.strip(), df)
                     plan = validate_plan(plan, df)
-
                     st.session_state["last_plan_source"] = (
                         f"LLM ({provider})"
                     )
 
                 except Exception as exc:
                     st.warning(
-                        "LLM planning failed; using the local interpreter "
-                        "instead. "
-                        f"Details: {type(exc).__name__}: {exc}"
+                        "LLM planning failed; using local interpreter "
+                        f"instead. Details: {type(exc).__name__}: {exc}"
                     )
 
         if plan is None:
             plan = local_plan(question.strip(), df)
             st.session_state["last_plan_source"] = "Local fallback"
 
-        st.markdown("### Analysis results")
-
-        st.caption(
-            f"**Question interpretation:** `{plan['operation']}`  ·  "
-            f"**Method:** {st.session_state['last_plan_source']}"
+        st.markdown(
+            f"**Question interpretation:** `{plan['operation']}` · "
+            f"**Source:** {st.session_state['last_plan_source']}"
         )
 
         if plan.get("answer_note"):
@@ -2475,73 +1620,10 @@ with analyst_tab:
         with st.spinner("Calculating from your data..."):
             result = execute_plan(df, plan)
 
-        # Render the calculated findings.
-        with st.container(border=True):
-            st.markdown("#### Result")
-            st.markdown(result.get("answer", ""))
+        st.markdown("### Result")
+        st.markdown(result.get("answer", ""))
 
-        # Business Advisor: use a dedicated strategy-oriented LLM prompt.
-        if plan["operation"] == "business_advisor":
-            if (
-                use_llm
-                and LANGCHAIN_AVAILABLE
-                and has_key
-                and result.get("key_findings")
-            ):
-                with st.spinner(
-                    "Evaluating opportunities and prioritizing actions..."
-                ):
-                    try:
-                        advice = business_advice_with_llm(
-                            question.strip(),
-                            result,
-                        )
-
-                        st.markdown("### DEXCR's recommendations")
-
-                        with st.container(border=True):
-                            st.markdown(advice)
-
-                    except Exception as exc:
-                        st.warning(
-                            "The calculated business findings are available, "
-                            "but AI recommendations could not be generated. "
-                            f"Details: {type(exc).__name__}: {exc}"
-                        )
-
-                        st.info(
-                            "Check your API key, provider configuration, "
-                            "and model access to enable AI recommendations."
-                        )
-            else:
-                st.markdown("### Business Advisor: next steps")
-
-                if not result.get("available_fields", {}).get("revenue"):
-                    st.markdown(
-                        "1. Identify which column represents revenue or sales.\n"
-                        "2. If possible, include transaction dates and product, "
-                        "category, customer, or region fields.\n"
-                        "3. Re-run the analysis to identify actionable "
-                        "opportunities."
-                    )
-                else:
-                    st.markdown(
-                        "The findings above are calculated from your data. "
-                        "To get a prioritized, natural-language action plan, "
-                        "enable AI and configure your Qwen or OpenAI API key."
-                    )
-
-                    st.markdown(
-                        "- Investigate the strongest and weakest groups "
-                        "identified in the results.\n"
-                        "- Compare recent performance with earlier periods "
-                        "if date data is available.\n"
-                        "- Validate possible causes with additional business "
-                        "information before investing in an intervention."
-                    )
-
-        # For regular analytical questions, retain the existing explanation.
-        elif (
+        if (
             use_llm
             and LANGCHAIN_AVAILABLE
             and has_key
@@ -2554,53 +1636,18 @@ with analyst_tab:
                     result,
                 )
 
-            st.markdown("#### Business interpretation")
+            st.markdown("### Business interpretation")
             st.markdown(explanation)
 
         if result.get("chart") is not None:
+            # FIX: stable, unique key for the analyst's result chart.
             st.plotly_chart(
                 result["chart"],
                 use_container_width=True,
+                key="analyst_result_chart",
             )
 
-        # Display supporting tables for the Business Advisor.
-        if plan["operation"] == "business_advisor":
-            evidence_tables = result.get("evidence_tables", {})
-
-            if evidence_tables:
-                st.markdown("### Supporting evidence")
-
-                for table_name, table in evidence_tables.items():
-                    with st.expander(table_name):
-                        st.dataframe(
-                            table,
-                            use_container_width=True,
-                        )
-
-                        st.download_button(
-                            f"Download {table_name} as CSV",
-                            table.to_csv(index=False).encode("utf-8"),
-                            file_name=(
-                                re.sub(
-                                    r"[^a-zA-Z0-9_-]+",
-                                    "_",
-                                    table_name.lower(),
-                                )
-                                + ".csv"
-                            ),
-                            mime="text/csv",
-                            key=(
-                                "download_business_"
-                                + re.sub(
-                                    r"[^a-zA-Z0-9_-]+",
-                                    "_",
-                                    table_name.lower(),
-                                )
-                            ),
-                        )
-
-        elif isinstance(result.get("table"), pd.DataFrame):
-            st.markdown("#### Detailed results")
+        if isinstance(result.get("table"), pd.DataFrame):
             st.dataframe(
                 result["table"],
                 use_container_width=True,
@@ -2621,12 +1668,11 @@ with analyst_tab:
 
 
 # ============================================================
-# 11. FOOTER
+# 8. FOOTER
 # ============================================================
 st.markdown("---")
 st.caption(
-    "DEXCR · Make your data make sense. "
-    "Verify important business decisions against source data. "
-    "Recommendations identify opportunities to investigate, not guaranteed "
-    "results. Forecasts are baseline estimates, not guarantees."
+    "DEXCR is an analytics assistant. Verify important business "
+    "decisions against source data. Forecasts are baseline estimates, "
+    "not guarantees."
 )
