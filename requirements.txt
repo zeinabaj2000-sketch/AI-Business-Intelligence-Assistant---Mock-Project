@@ -1,6 +1,5 @@
 streamlit
 pandas
 numpy
-torch
-transformers
-accelerate
+openpyxl
+plotly
